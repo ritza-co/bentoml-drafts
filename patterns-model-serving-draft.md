@@ -2,6 +2,8 @@
 
 **Getting your machine learning model into the real world.**
 
+![image](https://user-images.githubusercontent.com/2641205/113266440-9165f680-92d5-11eb-8a12-c18a769a2bba.png)
+
 You’ve developed a machine learning model and it works well on your test dataset. You’re confident that it will work well out in the real world too. But what’s the best way to get it there?
 There are several ways to achieve this, from rolling your own server to using an off-the-shelf tool.
 
