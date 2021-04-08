@@ -9,48 +9,69 @@ There are several ways to achieve this, from rolling your own server to using an
 
 We’ll assume that you have some experience with machine learning and training models, and give you the details you need to choose a production tool for model inference serving.
 
-## Creating an API from your model
+## Choosing an architecture for your model serving
 
 A common pattern is to put your model behind an API. This means that others can programmatically send requests and data to your model and get its predictions as a response. There are several different design patterns and tools for building APIs though. If you’ve built standard REST APIs with a tool like Flask before, there are some additional considerations you need to take into account, including the fact that machine learning models are often large and slow compared to normal APIs that can simply query a database to return a result.
 REST API vs gRPC API.
 
 Depending on how long you’ve worked with technology, you might remember RPC APIs, and how REST-based ones slowly but surely took over as the default architecture.
 
-![](https://i.ritzastatic.com/images/43b6474e650a44e49a839af7027f0799/rest-rpc.jpeg)
+![](https://i.ritzastatic.com/images/bfc19a23f5d941379048e9b05e7627c3/BentoML_ML_API_graph.jpg)
 
 **Caption:** REST APIs overtook RPC APIs in popularity, but gRPC is gaining ground.
 **Alt text:** A graph showing RPC popularity declining, REST increasing since 2005, and gRPC increasing since 2015.
 
 But RPC had some advantages over REST, and Google launched gRPC in 2015 to address some of the downsides of REST. It’s become a common pattern for machine learning models.
-When productionizing a machine learning model, REST and gRPC are both great choices. You should probably choose 
 
-* RPC if ...
-* REST if ....
+When productionizing a machine learning model, REST and gRPC are both popular choices, but gRPC is something of a double-edged sword.
 
-## Flask vs FastAPI
+* **REST** should probably be your default choice in most cases. It has higher adoption, so more developers are familiar with it. It's also more flexible and easier to get started.
+* **gRPC** only makes sense if your team is already familiar with it and has a good build process and development flow set up. While gRPC can be more powerful than REST in some cases, it will increase the computation cost for many model serving workloads.
 
-Flask and FastAPI are similar micro-frameworks for writing web applications and APIs in Python. FastAPI is a new project and follows many of Flask’s design patterns, so programmers who are familiar with Flask can pick up FastAPI fairly easily.
-A common criticism of Flask is that it can be slow, and this is the main problem that FastAPI addresses. As Flask is far older, it is more mature and has a larger set of plugins and third-party libraries.
-Consider using Flask if you have Flask experts on the team or if you need a specific plugin. Use FastAPI if you’re more concerned with raw speed.
+Once you've chosen an architecture, the next step is to pick a framework to develop your serving solution.
 
-Both frameworks are minimalistic - meaning that you will have to write a lot of code to create a scalable model serving solution on top of either. Another alternative is to use a more specialised model serving framework that will give you more out of the box.
-Tensorflow serving
+## Serving frameworks - Flask vs FastAPI vs Tensorflow Serving vs BentoML
 
-Many data scientists default to using Tensorflow serving as a model serving framework simply because of the popularity of Tensorflow itself.
-BentoML
+Flask and FastAPI are both very similar minimalist web frameworks that you can use to develop a wide range of web applications and APIs using Python. Both of them aim to provide the bare minimum that a developer needs -- sometimes called a "batteries excluded" design pattern that maximizes choice and flexibility. This means that developers will end up writing a lot of 'boilerplate' code - repetitive code to build features that are needed in nearly all projects.
 
-## Offline models: batch serving
+By contrast, BentoML uses a "batteries included" approach - it comes with prebuilt features that most machine learning serving projects need.
 
-Sometimes instead of serving predictions to users on-demand, you only need the predictions to be generated as part of some pipelined set of tasks. For example, you might need to generate a revenue forecast on the first day of each month, instead of on demand.
-In this case, following an offline batch serving pattern is probably more appropriate than an API.
+* **Flask** is the oldest and most mature project. There is no shortage of documentation, example projects, and plug-ins that can help developers get up to speed quickly. That said, Flask is also criticised for some design choices, and most noticeably its speed and lack of async options
+* **FastAPI** replicates the good parts of Flask while addressing the speed and lack of async support issues. It is popular among machine learning teams where speed and asynchronous support are often vital.
+* **BentoML** is a higher level of abstraction built on top of Flask, which it uses for hosting the model run-time. It includes an Asyncio layer to handle queuing requests, as well as other features that most machine learning projects need like micro-batching and load balancing inference requests across multiple workers.
+* **TensorFlow serving** is similarly a higher abstraction layer than Flask or FastAPI. Unlike BentoML, it's necessary to compile a model before serving it with TensorFlow Serving, so doing pre- and post-processing steps is difficult. BentoML keeps a full Python runtime environment during serving, making pre- and post-processing steps simple.
 
-### Offline serving using a simple script and one machine
-The simplest way to achieve offline batch serving is by having a CRON job trigger a script on a single machine. This works well for proof-of-concepts or small projects, but doesn’t scale well if you need to process large amounts of data.
-At a larger scale, you might need to distribute the work over several machines using a distributed framework like Spark or Dask.
+## Other archictecture patterns: offline and streaming models
 
-### Distributed serving with Spark or Dask
+While discussing APIs, we've assumed that predictions should be served to end users on-demand - the consuming application will make a request to the API by sending some data and will get a prediction in response as quickly as possible.
+
+This isn't the only pattern that machine learning solutions use though. Two other patterns are
+
+* **Offline or batch processing**: where data is processed and predictions are generated at regular intervals (e.g. weekly), instead of on demand.
+* **Streaming**: where data is processed continuously (e.g. detecting fraud in credit card transactions).
+
+Choosing which pattern to use will depend mainly on your goals. Do you need predictions on-demand (e.g. users uploading photos for analysis), or on a schedule (e.g. predicting revenue for the next quarter)?
+
+## Scaling model serving with distributed serving
+
+Many projects will start out using only a single server. If you need to process large amounts of data, or a high number of user requests, you'll need to start scaling horizontally -- adding more servers.
+
+Distributed model serving can cause all kinds of headaches. In many cases, distributed serving means that developers can't rely on familiar things like using `pickle` to save data to a file system, as a different server in the cluster may not have access to the same file system.
+
+**Spark** and **Dask** are two popular frameworks that let you scale your code up to multiple machines, but both have steep learning curves. [Cloudpickle](https://github.com/cloudpipe/cloudpickle) and [Dill](https://pypi.org/project/dill/) are two libraries that attempt to bring back the familiarity of working with saving data to a file to distributed environments, but neither of these are perfect.
+
+In many cases, machine learning frameworks simply do not work well in distributed environments.
+
+BentoML addresses this too, integrating with Spark and Dask and allowing developers to easily run the same user-defined functions that they run locally in powerful clusters.
 
 ### Unifying your local and production environments with BentoML
 
-A common headache for production serving is having things work as expected in your development environment, and then fail when deploying to your Spark or Dask cluster. This is caused by the fact that the two environments are not unified.
-BentoML ...
+No matter which architecture and framework you choose for your project, one of the largest problems you will face is the gap between development and production environments.
+
+"But it works on my machine" is a common lament among developers. In many cases, developers will write code and do a demonstration on their local machine. Everything will go well and they will declare the project done.
+
+But on the production server, suddenly there is a new environment, different configuration, and new set of assumptions. Bugs that happen in production sometimes can't be replicated locally and are therefore difficult to fix.
+
+One of the core goals of BentoML is to unify your local and production environments, allowing data scientists who don't have extensive operations experience to put their work out into the real world easily.
+
+Take a look at our [GitHub](https://github.com/bentoml/BentoML), [our docs](https://docs.bentoml.org/en/latest/), or dive right into [our Google Colab example](https://colab.research.google.com/github/bentoml/BentoML/blob/master/guides/quick-start/bentoml-quick-start-guide.ipynb).
