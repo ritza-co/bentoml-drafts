@@ -64,7 +64,7 @@ In many cases, machine learning frameworks simply do not work well in distribute
 
 BentoML addresses this too, integrating with Spark and Dask and allowing developers to easily run the same user-defined functions that they run locally in powerful clusters.
 
-### Unifying your local and production environments with BentoML
+## Unifying your local and production environments with BentoML
 
 No matter which architecture and framework you choose for your project, one of the largest problems you will face is the gap between development and production environments.
 
